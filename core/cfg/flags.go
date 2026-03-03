@@ -174,6 +174,11 @@ MISC OPTIONS:
 			Usage: "Try to authenticate automatically using VM metadata service (Yandex Cloud / IMDSv1 / GCP)",
 		},
 
+		cli.BoolFlag{
+			Name:  "bearer",
+			Usage: "Use Authorization: Bearer <token> from credential_process SecretAccessKey instead of SigV4",
+		},
+
 		cli.StringFlag{
 			Name:  "iam-header",
 			Value: "X-YaCloud-SubjectToken",
@@ -948,6 +953,7 @@ func PopulateFlags(c *cli.Context) (ret *FlagStorage) {
 		config.Subdomain = c.Bool("subdomain")
 		config.NoChecksum = c.Bool("no-checksum")
 		config.UseIAM = c.Bool("iam")
+		config.UseBearer = c.Bool("bearer")
 		config.IAMHeader = c.String("iam-header")
 		config.IAMFlavor = c.String("iam-flavor")
 		config.IAMUrl = c.String("iam-url")

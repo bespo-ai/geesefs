@@ -222,6 +222,22 @@ func (s *S3Backend) setIAMSigner(handlers *request.Handlers) {
 	handlers.Sign.PushBackNamed(corehandlers.BuildContentLengthHandler)
 }
 
+func (s *S3Backend) setBearerSigner(handlers *request.Handlers) {
+	handlers.Sign.Clear()
+	handlers.Sign.PushBack(func(req *request.Request) {
+		if req.Config.Credentials == credentials.AnonymousCredentials {
+			return
+		}
+		creds, err := req.Config.Credentials.Get()
+		if err != nil {
+			req.Error = err
+			return
+		}
+		req.HTTPRequest.Header.Set("Authorization", "Bearer "+creds.SecretAccessKey)
+	})
+	handlers.Sign.PushBackNamed(corehandlers.BuildContentLengthHandler)
+}
+
 func (s *S3Backend) Bucket() string {
 	return s.bucket
 }
@@ -259,7 +275,9 @@ func (s *S3Backend) newS3() {
 	if s.config.RequesterPays {
 		s.S3.Handlers.Build.PushBack(addRequestPayer)
 	}
-	if s.iam {
+	if s.config.UseBearer {
+		s.setBearerSigner(&s.S3.Handlers)
+	} else if s.iam {
 		s.setIAMSigner(&s.S3.Handlers)
 	} else if s.v2Signer {
 		s.setV2Signer(&s.S3.Handlers)

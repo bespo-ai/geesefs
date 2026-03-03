@@ -78,6 +78,7 @@ type S3Config struct {
 	IAMFlavor string
 	IAMUrl    string
 	IAMHeader string
+	UseBearer bool // Send Authorization: Bearer <SecretAccessKey> instead of SigV4
 
 	Credentials *credentials.Credentials
 	Session     *session.Session
