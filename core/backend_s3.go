@@ -234,6 +234,33 @@ func (s *S3Backend) setBearerSigner(handlers *request.Handlers) {
 			return
 		}
 		req.HTTPRequest.Header.Set("Authorization", "Bearer "+creds.SecretAccessKey)
+
+		// GCS only processes x-amz-* headers when Authorization uses
+		// AWS4-HMAC-SHA256 signing. With Bearer auth, GCS expects native
+		// x-goog-* headers. Translate the critical ones used by CopyObject.
+		amzToGoog := [][2]string{
+			{"X-Amz-Copy-Source", "x-goog-copy-source"},
+			{"X-Amz-Copy-Source-If-Match", "x-goog-copy-source-if-match"},
+			{"X-Amz-Copy-Source-If-None-Match", "x-goog-copy-source-if-none-match"},
+			{"X-Amz-Copy-Source-If-Modified-Since", "x-goog-copy-source-if-modified-since"},
+			{"X-Amz-Copy-Source-If-Unmodified-Since", "x-goog-copy-source-if-unmodified-since"},
+			{"X-Amz-Metadata-Directive", "x-goog-metadata-directive"},
+		}
+		for _, pair := range amzToGoog {
+			if v := req.HTTPRequest.Header.Get(pair[0]); v != "" {
+				// GCS native API requires /bucket/object format for copy-source
+				if pair[0] == "X-Amz-Copy-Source" && len(v) > 0 && v[0] != '/' {
+					v = "/" + v
+				}
+				req.HTTPRequest.Header.Set(pair[1], v)
+				req.HTTPRequest.Header.Del(pair[0])
+			}
+		}
+		// Remove x-amz-* headers that GCS doesn't understand in Bearer mode.
+		// GCS ignores unknown x-amz-* headers with HMAC auth but may reject
+		// them with Bearer auth since it's not in S3-compat mode.
+		req.HTTPRequest.Header.Del("X-Amz-Storage-Class")
+		req.HTTPRequest.Header.Del("X-Amz-Content-Sha256")
 	})
 	handlers.Sign.PushBackNamed(corehandlers.BuildContentLengthHandler)
 }
